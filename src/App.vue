@@ -1,98 +1,199 @@
 <template>
   <div class="container">
-    <h1 class="title">GESTAPP</h1>
-    <div class="task-container">
-      <TaskForm @new-task="addTask" />
+    <h1>GESTAPP</h1>
+
+    <form @submit.prevent="addTask">
+      <label for="title">Título:</label>
+      <input type="text" id="title" v-model="newTask.title" />
+
+      <label for="description">Descripción:</label>
+      <textarea id="description" v-model="newTask.description"></textarea>
+
+      <button>Agregar Tarea</button>
+    </form>
+
+    <div class="task-list">
+      <h2>Tareas Pendientes</h2>
+
+      <div v-if="pendingTasks.length === 0">No hay tareas pendientes.</div>
+
+      <div v-for="task in pendingTasks" :key="task.id" class="task">
+        <div class="task-content">
+          <h3>{{ task.title }}</h3>
+          <p>{{ task.description }}</p>
+        </div>
+
+        <div class="task-actions">
+          <button @click="completeTask(task.id)">Completar</button>
+          <button class="delete-button" @click="deleteTask(task.id)">Eliminar</button>
+        </div>
+      </div>
     </div>
-    <div class="task-container">
-      <h2 class="subtitle">Tareas Pendientes</h2>
-      <TaskList :tasks="tasks.filter(task => !task.completed)" @update-task="updateTask" @delete-task="deleteTask" />
-    </div>
-    <div class="task-container">
-      <h2 class="subtitle">Tareas Completadas</h2>
-      <TaskList :tasks="tasks.filter(task => task.completed)" @update-task="updateTask" @delete-task="deleteTask" />
+
+    <div class="task-list">
+      <h2>Tareas Completadas</h2>
+
+      <div v-if="completedTasks.length === 0">No hay tareas completadas.</div>
+
+      <div v-for="task in completedTasks" :key="task.id" class="task">
+        <div class="task-content">
+          <h3>{{ task.title }}</h3>
+          <p>{{ task.description }}</p>
+        </div>
+
+        <div class="task-actions">
+          <button @click="uncompleteTask(task.id)">Descompletar</button>
+          <button class="delete-button" @click="deleteTask(task.id)">Eliminar</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import TaskForm from './components/TaskForm.vue';
-import TaskList from './components/TaskList.vue';
+import Vue from 'vue';
 
 export default {
-  name: 'App',
-  components: {
-    TaskForm,
-    TaskList
-  },
   data() {
     return {
-      tasks: []
+      newTask: {
+        title: '',
+        description: '',
+        completed: false,
+        id: 1,
+      },
+      tasks: [],
     };
   },
+
+  computed: {
+    pendingTasks() {
+      return this.tasks.filter((task) => !task.completed);
+    },
+
+    completedTasks() {
+      return this.tasks.filter((task) => task.completed);
+    },
+  },
+
   methods: {
-    addTask(task) {
-      this.tasks.push(task);
+    addTask() {
+      if (!this.newTask.title || !this.newTask.description) {
+        alert('Por favor ingrese un título y una descripción para la tarea.');
+        return;
+      }
+      this.tasks.push({ ...this.newTask, id: this.newTask.id++ });
+      this.newTask.title = '';
+      this.newTask.description = '';
     },
-    updateTask(updatedTask) {
-      const taskIndex = this.tasks.findIndex(
-        (task) => task.id === updatedTask.id
-      );
-      this.tasks.splice(taskIndex, 1, updatedTask);
+
+    deleteTask(taskId) {
+      this.tasks = this.tasks.filter((task) => task.id !== taskId);
     },
-    deleteTask(id) {
-      const taskIndex = this.tasks.findIndex(task => task.id === id);
-      this.tasks.splice(taskIndex, 1);
-    }
-  }
+
+    completeTask(taskId) {
+      const task = this.tasks.find((task) => task.id === taskId);
+      task.completed = true;
+    },
+
+    uncompleteTask(taskId) {
+      const task = this.tasks.find((task) => task.id === taskId);
+      task.completed = false;
+    },
+  },
 };
 </script>
 
 <style>
 .container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+}
+
+form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background-color: #f2f2f2;
+  margin-bottom: 30px;
 }
 
-.title {
-  color: #333;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.subtitle {
-  color: #333;
-  text-align: center;
+form label {
   margin-bottom: 10px;
+  font-size: 1.2rem;
 }
 
-.task-container {
-  margin-bottom: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #fff;
-  width: 50%;
+form input,
+form textarea {
   padding: 10px;
-  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
+  margin-bottom: 20px;
+  border: none;
+  background-color: #f2f2f2;
+  border-radius: 5px;
+  font-size: 1.2rem;
 }
 
-.task-container button {
-  background-color: #e74c3c;
+form button {
+  padding: 10px 20px;
+  background-color: #4caf50;
   color: #fff;
   border: none;
   border-radius: 5px;
-  padding: 5px 10px;
+  font-size: 1.2rem;
   cursor: pointer;
+  transition: all 0.2s ease-in-out;
 }
 
-.task-container button.add-button {
-  float: right;
-  margin-bottom: 10px;
+form button:hover {
+  background-color: #388e3c;
 }
 
-.task-container button.delete-button {
-  float: right;
+.task-list {
+  margin-top: 30px;
+}
+
+.task {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-bottom: 20px;
+  transition: all 0.2s ease-in-out;
+}
+
+.task:hover {
+  transform: translateY(-5px);
+}
+
+.task-actions {
+  display: flex;
+}
+
+.task-actions button {
+  margin-left: 10px;
+  padding: 10px 20px;
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.task-actions button:hover {
+  background-color: #388e3c;
+}
+
+.delete-button {
+  background-color: #f44336;
 }
 </style>
