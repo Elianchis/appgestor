@@ -85,6 +85,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   data() {
     return {
@@ -107,7 +109,6 @@ export default {
         username: "",
         password: "",
       },
-      users: [],
       loggedInUser: "",
     };
   },
@@ -123,36 +124,52 @@ export default {
   },
 
   methods: {
-    addTask() {
+    async addTask() {
       if (!this.newTask.title || !this.newTask.description) {
         alert('Por favor ingrese un título y una descripción para la tarea.');
         return;
       }
       if (this.editMode) {
-        this.updateTask();
+        await this.updateTask();
       } else {
-        this.tasks.push({ ...this.newTask, id: this.newTask.id++ });
+        try {
+          const response = await axios.post('http://localhost:3000/tasks', this.newTask);
+          const task = response.data;
+          this.tasks.push(task);
+        } catch (error) {
+          console.error('Failed to add task:', error);
+        }
       }
       this.resetForm();
-
-      localStorage.setItem('tasks', JSON.stringify(this.tasks));
     },
 
-    deleteTask(taskId) {
-      this.tasks = this.tasks.filter((task) => task.id !== taskId);
-      localStorage.setItem('tasks', JSON.stringify(this.tasks));
+    async deleteTask(taskId) {
+      try {
+        await axios.delete(`http://localhost:3000/tasks/${taskId}`);
+        this.tasks = this.tasks.filter((task) => task.id !== taskId);
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+      }
     },
 
-    completeTask(taskId) {
+    async completeTask(taskId) {
       const task = this.tasks.find((task) => task.id === taskId);
-      task.completed = true;
-      localStorage.setItem('tasks', JSON.stringify(this.tasks));
+      if (task && !task.completed) {
+        task.completed = true;
+        await this.updateTask();
+      } else {
+        console.error('Task not found or already completed.');
+      }
     },
 
-    uncompleteTask(taskId) {
+    async uncompleteTask(taskId) {
       const task = this.tasks.find((task) => task.id === taskId);
-      task.completed = false;
-      localStorage.setItem('tasks', JSON.stringify(this.tasks));
+      if (task && task.completed) {
+        task.completed = false;
+        await this.updateTask();
+      } else {
+        console.error('Task not found or already uncompleted.');
+      }
     },
 
     editTask(task) {
@@ -161,12 +178,26 @@ export default {
       this.newTask = { ...task };
     },
 
-    updateTask() {
-      const taskIndex = this.tasks.findIndex((task) => task.id === this.editedTask.id);
-      this.tasks.splice(taskIndex, 1, { ...this.newTask });
-      this.resetForm();
+    async updateTask() {
+      if (!this.editedTask) {
+        console.error('No task is being edited.');
+        return;
+      }
 
-      localStorage.setItem('tasks', JSON.stringify(this.tasks));
+      const taskIndex = this.tasks.findIndex((task) => task.id === this.editedTask.id);
+      if (taskIndex === -1) {
+        console.error('Task not found.');
+        return;
+      }
+
+      try {
+        const response = await axios.put(`http://localhost:3000/tasks/${this.editedTask.id}`, this.newTask);
+        const updatedTask = response.data;
+        this.tasks.splice(taskIndex, 1, updatedTask);
+        this.resetForm();
+      } catch (error) {
+        console.error('Failed to update task:', error);
+      }
     },
 
     resetForm() {
@@ -188,76 +219,69 @@ export default {
       this.showRegister = false;
     },
 
-    registerUser() {
+    async registerUser() {
       if (!this.registerForm.username || !this.registerForm.password) {
         alert('Por favor ingrese un usuario y una contraseña válidos.');
         return;
       }
 
-      const user = this.users.find((user) => user.username === this.registerForm.username);
-      if (user) {
-        alert('El usuario ya está registrado.');
-        return;
+      try {
+        const response = await axios.post('http://localhost:3000/users', this.registerForm);
+        const user = response.data;
+        this.users.push(user);
+        alert('Usuario registrado exitosamente.');
+        this.showLoginForm();
+        this.resetForm();
+      } catch (error) {
+        console.error('Failed to register user:', error);
       }
-
-      this.users.push({
-        username: this.registerForm.username,
-        password: this.registerForm.password,
-      });
-
-      localStorage.setItem('users', JSON.stringify(this.users));
-
-      alert('Usuario registrado exitosamente.');
-
-      this.showLoginForm();
-      this.resetForm();
     },
 
-    loginUser() {
+    async loginUser() {
       if (!this.loginForm.username || !this.loginForm.password) {
         alert("Por favor ingrese un usuario y una contraseña válidos.");
         return;
       }
 
-      const user = this.users.find(
-        (user) => user.username === this.loginForm.username
-      );
-      if (!user || user.password !== this.loginForm.password) {
-        alert("Credenciales inválidas. Por favor, intente nuevamente.");
-        return;
+      try {
+        const response = await axios.get(`http://localhost:3000/users?username=${this.loginForm.username}&password=${this.loginForm.password}`);
+        const users = response.data;
+        if (users.length === 0) {
+          alert("Credenciales inválidas. Por favor, intente nuevamente.");
+          return;
+        }
+        this.isLoggedIn = true;
+        this.loggedInUser = this.loginForm.username;
+        localStorage.setItem("loggedInUser", this.loginForm.username);
+        alert("Inicio de sesión exitoso.");
+      } catch (error) {
+        console.error('Failed to login:', error);
       }
-
-      this.isLoggedIn = true;
-      this.loggedInUser = this.loginForm.username;
-      localStorage.setItem("loggedInUser", this.loginForm.username);
-
-      alert("Inicio de sesión exitoso.");
     },
 
     logout() {
       this.isLoggedIn = false;
       this.loggedInUser = "";
       localStorage.removeItem("loggedInUser");
-
       alert("Sesión cerrada exitosamente.");
     },
   },
 
-  created() {
-    const users = JSON.parse(localStorage.getItem('users'));
-    if (users) {
-      this.users = users;
-    }
+  async created() {
+    try {
+      const response = await axios.get('http://localhost:3000/users');
+      this.users = response.data;
 
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser) {
-      this.isLoggedIn = true;
-      this.loggedInUser = loggedInUser;
-    }
+      const loggedInUser = localStorage.getItem("loggedInUser");
+      if (loggedInUser) {
+        this.isLoggedIn = true;
+        this.loggedInUser = loggedInUser;
+      }
 
-    const savedTasks = JSON.parse(localStorage.getItem('tasks'));
-    if (savedTasks) {
-      this.tasks = savedTasks;
+      const tasksResponse = await axios.get('http://localhost:3000/tasks');
+      this.tasks = tasksResponse.data;
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
     }
   },
 };
