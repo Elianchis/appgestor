@@ -156,7 +156,7 @@ export default {
       const task = this.tasks.find((task) => task.id === taskId);
       if (task && !task.completed) {
         task.completed = true;
-        await this.updateTask();
+        await this.updateTaskCompletion(task);
       } else {
         console.error('Task not found or already completed.');
       }
@@ -166,15 +166,23 @@ export default {
       const task = this.tasks.find((task) => task.id === taskId);
       if (task && task.completed) {
         task.completed = false;
-        await this.updateTask();
+        await this.updateTaskCompletion(task);
       } else {
         console.error('Task not found or already uncompleted.');
       }
     },
 
+    async updateTaskCompletion(task) {
+      try {
+        await axios.put(`http://localhost:3000/tasks/${task.id}`, task);
+      } catch (error) {
+        console.error('Failed to update task completion:', error);
+      }
+    },
+
     editTask(task) {
       this.editMode = true;
-      this.editedTask = { ...task };
+      this.editedTask = task;
       this.newTask = { ...task };
     },
 
@@ -184,16 +192,9 @@ export default {
         return;
       }
 
-      const taskIndex = this.tasks.findIndex((task) => task.id === this.editedTask.id);
-      if (taskIndex === -1) {
-        console.error('Task not found.');
-        return;
-      }
-
       try {
-        const response = await axios.put(`http://localhost:3000/tasks/${this.editedTask.id}`, this.newTask);
-        const updatedTask = response.data;
-        this.tasks.splice(taskIndex, 1, updatedTask);
+        await axios.put(`http://localhost:3000/tasks/${this.editedTask.id}`, this.newTask);
+        Object.assign(this.editedTask, this.newTask);
         this.resetForm();
       } catch (error) {
         console.error('Failed to update task:', error);
