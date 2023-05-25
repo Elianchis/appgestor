@@ -10,7 +10,7 @@ const connection = mysql.createConnection({
   host: 'localhost',
   port: 3306,
   user: 'root',
-  password: '', // Enter your MySQL password here if applicable
+  password: '',
   database: 'gestapp_db',
 });
 
